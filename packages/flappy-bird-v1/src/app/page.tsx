@@ -10,6 +10,7 @@ export default function FlappyBirdGame() {
   const [catY, setCatY] = useState(250);
   const [catVelocity, setCatVelocity] = useState(0);
   const [obstacles, setObstacles] = useState<Array<{ x: number; gapY: number; passed: boolean }>>([]);
+  const [fish, setFish] = useState<Array<{ x: number; y: number; speedY: number; id: number }>>([]);
 
   const GRAVITY = 0.5;
   const JUMP_STRENGTH = -10;
@@ -18,6 +19,7 @@ export default function FlappyBirdGame() {
   const GAP_HEIGHT = 180;
   const GAME_HEIGHT = 600;
   const GAME_WIDTH = 400;
+  const FISH_SIZE = 30;
 
   const jump = useCallback(() => {
     if (!gameStarted) {
@@ -27,6 +29,7 @@ export default function FlappyBirdGame() {
       setCatY(250);
       setCatVelocity(JUMP_STRENGTH);
       setObstacles([{ x: GAME_WIDTH, gapY: 200, passed: false }]);
+      setFish([]);
     } else if (!gameOver) {
       setCatVelocity(JUMP_STRENGTH);
     } else {
@@ -37,6 +40,7 @@ export default function FlappyBirdGame() {
       setCatY(250);
       setCatVelocity(JUMP_STRENGTH);
       setObstacles([{ x: GAME_WIDTH, gapY: 200, passed: false }]);
+      setFish([]);
     }
   }, [gameStarted, gameOver]);
 
@@ -86,6 +90,29 @@ export default function FlappyBirdGame() {
         return updated.filter((obs) => obs.x > -OBSTACLE_WIDTH);
       });
 
+      // Update fish
+      setFish((prev) => {
+        const updated = prev.map((f) => ({
+          ...f,
+          x: f.x - 4,
+          y: f.y + f.speedY,
+          speedY: f.y <= 50 || f.y >= GAME_HEIGHT - 50 ? -f.speedY : f.speedY,
+        }));
+
+        // Add new fish randomly
+        if (Math.random() < 0.02) {
+          updated.push({
+            x: GAME_WIDTH,
+            y: Math.random() * (GAME_HEIGHT - 100) + 50,
+            speedY: (Math.random() - 0.5) * 3,
+            id: Date.now(),
+          });
+        }
+
+        // Remove off-screen fish
+        return updated.filter((f) => f.x > -FISH_SIZE);
+      });
+
       // Check collisions
       const catX = 50;
       obstacles.forEach((obs) => {
@@ -106,6 +133,19 @@ export default function FlappyBirdGame() {
         }
       });
 
+      // Check collision with fish
+      fish.forEach((f) => {
+        if (
+          catX + CAT_SIZE > f.x &&
+          catX < f.x + FISH_SIZE &&
+          catY + CAT_SIZE > f.y &&
+          catY < f.y + FISH_SIZE
+        ) {
+          setGameOver(true);
+          setHighScore((prev) => Math.max(prev, score));
+        }
+      });
+
       // Check collision with ground/ceiling
       if (catY <= 0 || catY >= GAME_HEIGHT - CAT_SIZE) {
         setGameOver(true);
@@ -114,7 +154,7 @@ export default function FlappyBirdGame() {
     }, 1000 / 60);
 
     return () => clearInterval(gameLoop);
-  }, [gameStarted, gameOver, catY, catVelocity, obstacles, score]);
+  }, [gameStarted, gameOver, catY, catVelocity, obstacles, fish, score]);
 
   return (
     <div className="relative h-[100dvh] w-full overflow-hidden bg-gradient-to-b from-green-400 via-green-500 to-green-600 flex items-center justify-center">
@@ -182,6 +222,22 @@ export default function FlappyBirdGame() {
           </div>
         ))}
 
+        {/* Flying Fish */}
+        {fish.map((f) => (
+          <div
+            key={f.id}
+            className="absolute text-2xl"
+            style={{
+              left: f.x,
+              top: f.y,
+              width: FISH_SIZE,
+              height: FISH_SIZE,
+            }}
+          >
+            🐟
+          </div>
+        ))}
+
         {/* Start screen */}
         {!gameStarted && (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 z-10">
@@ -211,4 +267,11 @@ export default function FlappyBirdGame() {
     </div>
   );
 }
+
+
+
+
+
+
+
 
